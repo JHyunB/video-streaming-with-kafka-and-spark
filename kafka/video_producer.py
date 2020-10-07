@@ -12,7 +12,7 @@ while video.isOpened():
     if not success:
         print("read failed!!")
         break
-    _, img = cv2.imencode('.jpg',frame)
+    _, img = cv2.imencode('.jpg', frame)
     producer.send(topic, img.tobytes())
 
 video.release()
