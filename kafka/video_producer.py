@@ -10,7 +10,6 @@ video = cv2.VideoCapture(video_file)
 while video.isOpened():
     success, frame = video.read()
     if not success:
-        print("read failed!!")
         break
     _, img = cv2.imencode('.jpg', frame)
     producer.send(topic, img.tobytes())
