@@ -1,6 +1,7 @@
 from kafka import KafkaProducer
 import cv2
 
+
 topic = "testing"
 producer = KafkaProducer(bootstrap_servers='localhost:9092')
 
@@ -12,6 +13,7 @@ while video.isOpened():
     if not success:
         break
     _, img = cv2.imencode('.jpg', frame)
+
     producer.send(topic, img.tobytes())
 
 video.release()
