@@ -6,14 +6,11 @@ from pyspark.streaming.kafka import KafkaUtils
 import cv2
 import numpy as np
 
-from spark.utils.array_util import *
-import spark.parameters as params
-
-from spark.utils.array_util import sliding_window
+import parameters as params
 
 
 def deserializer(img):
-    return img[0], np.frombuffer(img[1], dtype=np.unit8)
+    return img[0], np.frombuffer(img[1], dtype=np.uint8)
 
 
 def decode(img):
@@ -32,10 +29,13 @@ def sliding_window(arr, size, stride):
 sc = SparkContext(appName="test")
 ssc = StreamingContext(sc,1)
 brokers, topic = sys.argv[1:]
-kafka_stream = KafkaUtils.createDirectStream(ssc,[topic],{"metadata.broker.list":brokers}, valueDecoder=MessageSerializer.decode_message)
+kafka_stream = KafkaUtils.createDirectStream(ssc,[topic],{"metadata.broker.list":brokers}, valueDecoder=lambda x: x)
 frames = kafka_stream.map(deserializer).map(decode).map(lambda x: x[1])
-clips = sliding_window(frames, params.frame_count, params.frame_count)
-
-clips.pprint()
+tmp_list = []
+frames.foreachRDD(lambda x:tmp_list.append(x.collect()))
+print(tmp_list)
+clips = sliding_window(tmp_list, params.frame_count, params.frame_count)
+print(clips.shape)
+frames.pprint()
 ssc.start()
 ssc.awaitTermination()
