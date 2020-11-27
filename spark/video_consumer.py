@@ -6,12 +6,13 @@ from pyspark.streaming.kafka import KafkaUtils
 import cv2
 import numpy as np
 
-import parameters as params
+import spark.parameters as params
+from spark.c3d import *
+from spark.classifier import *
 
 
 def deserializer(img):
     return img[0], np.frombuffer(img[1], dtype=np.uint8)
-
 
 def decode(img):
     return img[0], cv2.cvtColor(cv2.imdecode(img[1], cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
@@ -31,11 +32,35 @@ ssc = StreamingContext(sc,1)
 brokers, topic = sys.argv[1:]
 kafka_stream = KafkaUtils.createDirectStream(ssc,[topic],{"metadata.broker.list":brokers}, valueDecoder=lambda x: x)
 frames = kafka_stream.map(deserializer).map(decode).map(lambda x: x[1])
-tmp_list = []
-frames.foreachRDD(lambda x:tmp_list.append(x.collect()))
-print(tmp_list)
-clips = sliding_window(tmp_list, params.frame_count, params.frame_count)
-print(clips.shape)
+frame_list = []
+frames.foreachRDD(lambda x:frame_list.append(x.collect())) # rdd -> list
+video_clips = sliding_window(frame_list, params.frame_count, params.frame_count) # list -> np
+
+# build models
+feature_extractor = c3d_feature_extractor()
+classifier_model = build_classifier_model()
+
+# extract features
+rgb_features = []
+# 16프레임 단위로 특징 추출
+for i, clip in enumerate(video_clips):
+    # list -> array
+    clip = np.array(clip)
+    # 마지막 클립의 경우 처리 스킵
+    if len(clip) < params.frame_count:
+        continue
+
+    clip = preprocess_input(clip)
+    sc.parallelize(clip)
+    rgb_feature = feature_extractor.predict(clip)[0]
+    rgb_features.append(rgb_feature)
+
+    print("Processed clip : ", i)
+
+rgb_features = np.array(rgb_features) # list -> np
+
+
+
 frames.pprint()
 ssc.start()
 ssc.awaitTermination()
