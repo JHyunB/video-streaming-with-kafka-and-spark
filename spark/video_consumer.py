@@ -10,9 +10,12 @@ import spark.parameters as params
 from spark.c3d import *
 from spark.classifier import *
 
+from spark.utils.array_util import *
+
 
 def deserializer(img):
     return img[0], np.frombuffer(img[1], dtype=np.uint8)
+
 
 def decode(img):
     return img[0], cv2.cvtColor(cv2.imdecode(img[1], cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
@@ -55,12 +58,19 @@ for i, clip in enumerate(video_clips):
     rgb_feature = feature_extractor.predict(clip)[0]
     rgb_features.append(rgb_feature)
 
-    print("Processed clip : ", i)
 
 rgb_features = np.array(rgb_features) # list -> np
 
+# bag features
+rgb_feature_bag = interpolate(rgb_features, params.features_per_bag)
 
+# classify using the trained classifier model
+sc.parallelize(rgb_feature_bag)
+predictions = classifier_model.predict(rgb_feature_bag)
+predictions = np.array(predictions).squeeze()
 
+# predictions
+predictions = extrapolate(predictions,len(frame_list))
 frames.pprint()
 ssc.start()
 ssc.awaitTermination()
