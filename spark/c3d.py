@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import keras.backend as K
 import numpy as np
-from keras.layers.convolutional import Conv3D, MaxPooling3D, ZeroPadding3D
-from keras.layers.core import Dense, Dropout, Flatten
-from keras.models import Model
-from keras.models import Sequential
 from keras.utils.data_utils import get_file
 from scipy.misc import imresize
 
-import configuration as cfg
+from bigdl.nn.layer import *
+
 
 C3D_MEAN_PATH = 'https://github.com/adamcasson/c3d/releases/download/v0.1/c3d_mean.npy'
 
@@ -39,51 +35,7 @@ def preprocess_input(video):
     return reshape_frames
 
 
-def C3D(weights='sports1M'):
-    if weights not in {'sports1M', None}:
-        raise ValueError('weights should be either be sports1M or None')
-
-    if K.image_data_format() == 'channels_last':
-        shape = (16, 112, 112, 3)
-    else:
-        shape = (3, 16, 112, 112)
-
-    model = Sequential()
-    model.add(Conv3D(64, 3, activation='relu', padding='same', name='conv1', input_shape=shape))
-    model.add(MaxPooling3D(pool_size=(1, 2, 2), strides=(1, 2, 2), padding='same', name='pool1'))
-
-    model.add(Conv3D(128, 3, activation='relu', padding='same', name='conv2'))
-    model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding='valid', name='pool2'))
-
-    model.add(Conv3D(256, 3, activation='relu', padding='same', name='conv3a'))
-    model.add(Conv3D(256, 3, activation='relu', padding='same', name='conv3b'))
-    model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding='valid', name='pool3'))
-
-    model.add(Conv3D(512, 3, activation='relu', padding='same', name='conv4a'))
-    model.add(Conv3D(512, 3, activation='relu', padding='same', name='conv4b'))
-    model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding='valid', name='pool4'))
-
-    model.add(Conv3D(512, 3, activation='relu', padding='same', name='conv5a'))
-    model.add(Conv3D(512, 3, activation='relu', padding='same', name='conv5b'))
-    model.add(ZeroPadding3D(padding=(0, 1, 1)))
-    model.add(MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding='valid', name='pool5'))
-
-    model.add(Flatten())
-
-    model.add(Dense(4096, activation='relu', name='fc6'))
-    model.add(Dropout(0.5))
-    model.add(Dense(4096, activation='relu', name='fc7'))
-    model.add(Dropout(0.5))
-    model.add(Dense(487, activation='softmax', name='fc8'))
-
-    if weights == 'sports1M':
-        model.load_weights(cfg.c3d_model_weights)
-
-    return model
-
 
 def c3d_feature_extractor():
-    model = C3D()
-    layer_name = 'fc6'
-    feature_extractor_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
+    feature_extractor_model = Model.load_keras(json_path='./c3d.json')
     return feature_extractor_model
