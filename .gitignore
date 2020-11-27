@@ -1,3 +1,4 @@
 .idea/
 /kafka/venv/
 /spark/venv/
+/spark/__pycache__/
